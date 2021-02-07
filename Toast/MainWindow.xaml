@@ -5,11 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Toast"
         mc:Ignorable="d"
-        Title="MainWindow" 
+        Title="Toast Notification Test" 
         Width="360"
-        Height="360">
+        Height="240">
 
     <Grid>
-        <Button x:Name="ToastButton" Content="通知" HorizontalAlignment="Center" VerticalAlignment="Center" Click="ToastButton_Click" />
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Button x:Name="ToastButton" Content="显示通知" Margin="2" Padding="6,2" Click="ToastButton_Click" />
+            <Button x:Name="ClearButton" Content="清除所有" Margin="2" Padding="6,2" Click="ClearButton_Click" />
+        </StackPanel>
     </Grid>
 </Window>
