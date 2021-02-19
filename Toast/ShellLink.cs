@@ -1,12 +1,18 @@
-﻿using System;
+﻿// Modified from https://github.com/romayavorskyi/WpfNotificationTest/blob/master/NotificationTest/ShellLink.cs
+
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Security;
 using System.Text;
+using FILETIME = System.Runtime.InteropServices.ComTypes.FILETIME;
 
 namespace Toast
 {
+    // Modified from http://smdn.jp/programming/tips/createlnk/
+    // Originally from http://www.vbaccelerator.com/home/NET/Code/Libraries/Shell_Projects/Creating_and_Modifying_Shortcuts/article.asp
+    // Partly based on Sending toast notifications from desktop apps sample
     public class ShellLink : IDisposable
     {
         #region Win32 and COM
@@ -45,7 +51,7 @@ namespace Toast
 
         [SuppressUnmanagedCodeSecurity]
         [DllImport("ole32.dll")]
-        public extern static int PropVariantClear(ref PropVariant pvar);
+        private extern static int PropVariantClear(ref PropVariant pvar);
 
         // ShellLink CoClass (ShellLink object)
         [ComImport,
@@ -185,6 +191,7 @@ namespace Toast
 
             #region union members
 
+#pragma warning disable IDE1006 // 命名样式
             sbyte cVal // CHAR cVal;
             {
                 get { return (sbyte)GetDataBytes()[0]; }
@@ -237,7 +244,7 @@ namespace Toast
 
             bool boolVal // VARIANT_BOOL boolVal;
             {
-                get { return (iVal == 0 ? false : true); }
+                get { return (iVal != 0); }
             }
 
             int scode // SCODE scode;
@@ -255,6 +262,8 @@ namespace Toast
                 get { return DateTime.FromOADate(dblVal); }
             }
 
+#pragma warning restore IDE1006 // 命名样式
+
             #endregion // union members
 
             private byte[] GetBlobData()
@@ -264,20 +273,12 @@ namespace Toast
 
                 try
                 {
-                    switch (IntPtr.Size)
+                    pBlobData = IntPtr.Size switch
                     {
-                        case 4:
-                            pBlobData = new IntPtr(p2);
-                            break;
-
-                        case 8:
-                            pBlobData = new IntPtr(BitConverter.ToInt64(GetDataBytes(), sizeof(int)));
-                            break;
-
-                        default:
-                            throw new NotSupportedException();
-                    }
-
+                        4 => new IntPtr(p2),
+                        8 => new IntPtr(BitConverter.ToInt64(GetDataBytes(), sizeof(int))),
+                        _ => throw new NotSupportedException(),
+                    };
                     Marshal.Copy(pBlobData, blobData, 0, lVal);
                 }
                 catch
@@ -323,7 +324,7 @@ namespace Toast
             {
                 // Can't pass "this" by ref, so make a copy to call PropVariantClear with
                 PropVariant var = this;
-                PropVariantClear(ref var);
+                _ = PropVariantClear(ref var);
 
                 // Since we couldn't pass "this" by ref, we need to clear the member fields manually
                 // NOTE: PropVariantClear already freed heap data for us, so we are just setting
@@ -563,12 +564,10 @@ namespace Toast
         {
             get
             {
-                IPersistFile PersistFile = shellLinkW as IPersistFile;
-
-                if (PersistFile == null)
-                    throw new COMException("Failed to create IPersistFile.");
-                else
+                if (shellLinkW is IPersistFile PersistFile)
                     return PersistFile;
+                else
+                    throw new COMException("Failed to create IPersistFile.");
             }
         }
 
@@ -576,12 +575,10 @@ namespace Toast
         {
             get
             {
-                IPropertyStore PropertyStore = shellLinkW as IPropertyStore;
-
-                if (PropertyStore == null)
-                    throw new COMException("Failed to create IPropertyStore.");
-                else
+                if (shellLinkW is IPropertyStore PropertyStore)
                     return PropertyStore;
+                else
+                    throw new COMException("Failed to create IPropertyStore.");
             }
         }
 
@@ -594,9 +591,8 @@ namespace Toast
         {
             get
             {
-                string shortcutFile;
 
-                PersistFile.GetCurFile(out shortcutFile);
+                PersistFile.GetCurFile(out string shortcutFile);
 
                 return shortcutFile;
             }
@@ -645,23 +641,19 @@ namespace Toast
         {
             get
             {
-                using (PropVariant pv = new PropVariant())
-                {
-                    VerifySucceeded(PropertyStore.GetValue(AppUserModelIDKey, pv));
+                using PropVariant pv = new PropVariant();
+                VerifySucceeded(PropertyStore.GetValue(AppUserModelIDKey, pv));
 
-                    if (pv.Value == null)
-                        return "Null";
-                    else
-                        return pv.Value.ToString();
-                }
+                if (pv.Value == null)
+                    return "Null";
+                else
+                    return pv.Value.ToString();
             }
             set
             {
-                using (PropVariant pv = new PropVariant(value))
-                {
-                    VerifySucceeded(PropertyStore.SetValue(AppUserModelIDKey, pv));
-                    VerifySucceeded(PropertyStore.Commit());
-                }
+                using PropVariant pv = new PropVariant(value);
+                VerifySucceeded(PropertyStore.SetValue(AppUserModelIDKey, pv));
+                VerifySucceeded(PropertyStore.Commit());
             }
         }
 
@@ -669,23 +661,19 @@ namespace Toast
         {
             get
             {
-                using (PropVariant pv = new PropVariant())
-                {
-                    VerifySucceeded(PropertyStore.GetValue(CLSIDKey, pv));
+                using PropVariant pv = new PropVariant();
+                VerifySucceeded(PropertyStore.GetValue(CLSIDKey, pv));
 
-                    if (pv.Value == null)
-                        return Guid.Empty;
-                    else
-                        return new Guid(pv.Value.ToString());
-                }
+                if (pv.Value == null)
+                    return Guid.Empty;
+                else
+                    return new Guid(pv.Value.ToString());
             }
             set
             {
-                using (PropVariant pv = new PropVariant(value))
-                {
-                    VerifySucceeded(PropertyStore.SetValue(CLSIDKey, pv));
-                    VerifySucceeded(PropertyStore.Commit());
-                }
+                using PropVariant pv = new PropVariant(value);
+                VerifySucceeded(PropertyStore.SetValue(CLSIDKey, pv));
+                VerifySucceeded(PropertyStore.Commit());
             }
         }
 
@@ -756,7 +744,7 @@ namespace Toast
         public void Save(string file)
         {
             if (file == null)
-                throw new ArgumentNullException("File name is required.");
+                throw new ArgumentNullException(file, "File name is required.");
             else
                 PersistFile.Save(file, true);
         }

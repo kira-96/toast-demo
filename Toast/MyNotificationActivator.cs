@@ -3,7 +3,6 @@ using Microsoft.Toolkit.Uwp.Notifications;
 using System;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Threading;
 
 namespace Toast
 {
